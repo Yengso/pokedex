@@ -1,9 +1,12 @@
 package pokeapi
 
 import (
+	"fmt"
 	"encoding/json"
 	"net/http"
+	"time"
 	"io"
+	"github.com/yengso/pokedexcli/internal/pokecache"
 )
 
 type Result struct {
@@ -17,6 +20,8 @@ type Page struct {
 	Previous  	string	 `json:"previous"`
 }
 
+var cache = pokecache.NewCache(5 * time.Second)
+
 // This helper function takes the api url and returns a page form or err.
 
 func PokedexAPI(url string) (Page, error) {
@@ -24,24 +29,34 @@ func PokedexAPI(url string) (Page, error) {
 	defaultApi := "https://pokeapi.co/api/v2/location-area/"
 
 	finalURL := url
+	var apiBytes []byte
 
 	if len(url) == 0 {
 		finalURL = defaultApi
 	}
 
-	resp, err := http.Get(finalURL)
-	if err != nil {
-		return emptyPage, err
+	cacheData, ok := cache.Get(finalURL)
+	if ok == true {
+		apiBytes = cacheData
+		fmt.Println("You just used cached data!")
 	}
-	defer resp.Body.Close()
+	if ok == false {
+		resp, err := http.Get(finalURL)
+		if err != nil {
+			return emptyPage, err
+		}
+		defer resp.Body.Close()
 
-	apiBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return emptyPage, err
+		apiBytes, err = io.ReadAll(resp.Body)
+		if err != nil {
+			return emptyPage, err
+		}
+
+		cache.Add(finalURL, apiBytes)
 	}
 
 	apiForm := Page{}
-	err = json.Unmarshal(apiBytes, &apiForm)
+	err := json.Unmarshal(apiBytes, &apiForm)
 	if err != nil {
 		return emptyPage, err
 	}
