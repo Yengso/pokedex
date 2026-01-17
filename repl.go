@@ -116,6 +116,10 @@ func commandMapb(cfg *Config) error {
 	return nil
 }
 
+func explore(loc string) {
+	
+}
+
 func startRepl(cfg *Config) {
 	commandHelp(cfg)
 	scanner := bufio.NewScanner(os.Stdin)
