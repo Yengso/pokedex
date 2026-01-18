@@ -41,9 +41,29 @@ type LocationArea struct {
 	} `json:"pokemon_encounters"`
 }
 
-var cache = pokecache.NewCache(5 * time.Second)
+type Pokemon struct {
+	BaseExperience int `json:"base_experience"`
+	Height    int `json:"height"`
+	Name          string `json:"name"`
+	Stats []struct {
+		BaseStat int `json:"base_stat"`
+		Effort   int `json:"effort"`
+		Stat     struct {
+			Name string `json:"name"`
+			URL  string `json:"url"`
+		} `json:"stat"`
+	} `json:"stats"`
+	Types []struct {
+		Slot int `json:"slot"`
+		Type struct {
+			Name string `json:"name"`
+			URL  string `json:"url"`
+		} `json:"type"`
+	} `json:"types"`
+	Weight int `json:"weight"`
+}
 
-// This helper function takes the api url and returns a page form or err.
+var cache = pokecache.NewCache(5 * time.Second)
 
 func LocationsAPI(url string) (Page, error) {
 	var emptyPage Page
@@ -85,7 +105,7 @@ func LocationsAPI(url string) (Page, error) {
 	return apiForm, nil
 }
 
-func PokemonAPI(locURL string) (LocationArea, error) {
+func ExploreAPI(locURL string) (LocationArea, error) {
 	var emptyLocArea LocationArea
 	var apiBytes [] byte
 	var startURL = "https://pokeapi.co/api/v2/location-area/"
@@ -124,3 +144,46 @@ func PokemonAPI(locURL string) (LocationArea, error) {
 
 	return apiForm, nil 
 }
+
+func PokemonAPI(pokemon string) (Pokemon, error) {
+	var emptyPokemon Pokemon
+	var apiBytes [] byte
+	var startURL = "https://pokeapi.co/api/v2/pokemon/"
+
+	fullURL := startURL + pokemon
+
+	if len(pokemon) == 0 {
+		fmt.Println("No pokemon mentioned")
+		return emptyPokemon, nil
+	}
+
+	cacheData, ok := cache.Get(fullURL)
+	if ok == true {
+		apiBytes = cacheData
+	}
+	if ok == false {
+		resp, err := http.Get(fullURL)
+		if err != nil {
+			return emptyPokemon, err
+		}
+		defer resp.Body.Close()
+
+		apiBytes, err = io.ReadAll(resp.Body)
+		if err != nil {
+			return emptyPokemon, err
+		}
+		cache.Add(fullURL, apiBytes)
+	}
+
+	apiForm := Pokemon{}
+	err := json.Unmarshal(apiBytes, &apiForm)
+	if err != nil {
+		return emptyPokemon, err
+	}
+
+	return apiForm, nil 
+}
+
+
+
+

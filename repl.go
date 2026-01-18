@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"bufio"
 	"strings"
+	"time"
 	"os"
+	"math/rand"
 	"github.com/yengso/pokedexcli/internal/pokeapi"
 )
 
@@ -44,8 +46,13 @@ func init() {
 		},
 		"explore": {
 			name: 		 "explore",
-			description: "explore a location to find pokemon",
+			description: "explore a location to find pokemon. (use example: explore eterna-city-area)",
 			callback: 	 explore,
+		},
+		"catch": {
+			name:		 "catch",
+			description: "Try to catch named pokemon. (use example: catch tentacruel)",
+			callback:	 catch,
 		},
 	}
 }
@@ -130,7 +137,7 @@ func explore(cfg *Config, args []string) error {
 	areaName := args[0]
 	fmt.Printf("Exploring %s...\n", areaName)
 
-	loc, err := pokeapi.PokemonAPI(areaName)
+	loc, err := pokeapi.ExploreAPI(areaName)
 	if err != nil {
 		return err
 	}
@@ -138,6 +145,47 @@ func explore(cfg *Config, args []string) error {
 	fmt.Println("Found Pokemon:")
 	for _, enc := range loc.PokemonEncounters {
 		fmt.Printf(" - %s\n", enc.Pokemon.Name)
+	}
+
+	return nil
+}
+
+var Pokedex = make(map[string]pokeapi.Pokemon)
+
+func catch(cfg *Config, args []string) error {
+	minXP := 52.0
+	maxXP := 608.0
+	minChance := 0.1
+	maxChance := 75.0
+
+	pokemonName := args[0]
+	pokemon, _ := pokeapi.PokemonAPI(pokemonName)
+
+	normalized := (float64(pokemon.BaseExperience) - minXP) / (maxXP - minXP)
+	inverted := 1 - normalized
+	catchChance := inverted * maxChance
+
+	if catchChance < minChance {
+		catchChance = minChance
+	}
+
+	rand.Seed(time.Now().UnixNano())
+	roll := rand.Float64() * 100
+
+	fmt.Printf("Throwing a Pokeball at %v...\n", pokemon.Name)
+
+	if roll <= catchChance {
+		fmt.Printf("%v was caught!\nclea", pokemon.Name)
+
+		if _, exists := Pokedex[pokemon.Name]; exists {
+			fmt.Println("You alaready have this Pokemon, so you let this one go. :)")
+		} else {
+			Pokedex[pokemon.Name] = pokemon
+			fmt.Println("A new Pokemon has been added to you Pokedex. :)")
+		}
+	}
+	if roll > catchChance {
+		fmt.Printf("%v escaped!\n", pokemon.Name)
 	}
 
 	return nil
