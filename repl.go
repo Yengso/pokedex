@@ -54,6 +54,16 @@ func init() {
 			description: "Try to catch named pokemon. (use example: catch tentacruel)",
 			callback:	 catch,
 		},
+		"inspect": {
+			name: 		 "inspect",
+			description: "Inspect a pokemon in your pokedex by name (use example: inspect golbat)",
+			callback:	 inspect,
+		},
+		"pokedex": {
+			name:		 "pokedex",
+			description: "inspect all catched pokemon",
+			callback:	 pokedex,
+		},
 	}
 }
 
@@ -156,10 +166,15 @@ func catch(cfg *Config, args []string) error {
 	minXP := 52.0
 	maxXP := 608.0
 	minChance := 0.1
-	maxChance := 75.0
+	maxChance := 60.0
 
 	pokemonName := args[0]
-	pokemon, _ := pokeapi.PokemonAPI(pokemonName)
+	pokemon, err := pokeapi.PokemonAPI(pokemonName)
+	if err != nil {
+		fmt.Println("There's no such pokemon...")
+		return nil
+	}
+	fmt.Printf("Throwing a Pokeball at %v...\n", pokemon.Name)
 
 	normalized := (float64(pokemon.BaseExperience) - minXP) / (maxXP - minXP)
 	inverted := 1 - normalized
@@ -171,11 +186,8 @@ func catch(cfg *Config, args []string) error {
 
 	rand.Seed(time.Now().UnixNano())
 	roll := rand.Float64() * 100
-
-	fmt.Printf("Throwing a Pokeball at %v...\n", pokemon.Name)
-
 	if roll <= catchChance {
-		fmt.Printf("%v was caught!\nclea", pokemon.Name)
+		fmt.Printf("%v was caught!\n", pokemon.Name)
 
 		if _, exists := Pokedex[pokemon.Name]; exists {
 			fmt.Println("You alaready have this Pokemon, so you let this one go. :)")
@@ -187,7 +199,47 @@ func catch(cfg *Config, args []string) error {
 	if roll > catchChance {
 		fmt.Printf("%v escaped!\n", pokemon.Name)
 	}
+	return nil
+}
 
+func inspect(cfg *Config, args []string) error {
+	pokemon := args[0]
+
+	p, ok := Pokedex[pokemon]
+	if ok == false {
+		fmt.Println("You have yet to catch this Pokemon")
+		fmt.Println("Or you misspelled. :)")
+		return nil
+	}
+
+	fmt.Printf("Name: %s\n", p.Name)
+	fmt.Printf("Height: %d\n", p.Height)
+	fmt.Printf("Weight: %d\n", p.Weight)
+
+	fmt.Println("Stats:")
+	for _, s := range p.Stats {
+		fmt.Printf("  -%s: %d\n", s.Stat.Name, s.BaseStat)
+	}
+
+	fmt.Println("Types:")
+	for _, t := range p.Types {
+		fmt.Printf("  - %s\n", t.Type.Name)
+	}
+
+	return nil
+}
+
+func pokedex(cfg *Config, args []string) error {
+
+	if len(Pokedex) == 0 {
+		fmt.Println("Your pokedex is empty")
+		return nil
+	}
+
+	fmt.Println("Your Pokedex:")
+	for p, _ := range Pokedex {
+		fmt.Printf(" - %v\n", p)
+	}
 	return nil
 }
 
@@ -195,7 +247,7 @@ func startRepl(cfg *Config) {
 	commandHelp(cfg, nil)
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
-		fmt.Println("Pokedex > ")
+		fmt.Printf("Pokedex > ")
 		scanner.Scan()
 		
 		userText := scanner.Text()
